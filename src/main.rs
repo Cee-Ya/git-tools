@@ -37,6 +37,7 @@ const DEFAULT_OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions
 // 一个小功能，通过获取git log，然后通过gpt生成一个版本更新的总结
 // 协助开发者创建版本发布的描述
 #[tokio::main]
+#[warn(unreachable_code)]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let config : DefaultConfig;
@@ -99,6 +100,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     println!("生成版本更新的总结成功，耗时：{:?}毫秒", start_time.elapsed().as_millis());
 
     println!("上次发布版本号为{}，本次发布版本的内容如下：\n{}", tag, response.message().content);
+
+
+    // 程序阻塞 ,不退出
+    let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
     Ok(())
 
 }
