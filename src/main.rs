@@ -177,7 +177,6 @@ fn create_default_toml() -> DefaultConfig {
     println!(" [AI 配置（如果不填写就是直接文字总结）] ");
     default_config.ai = Some(get_ai_config());
 
-    println!("项目配置：{:?}", default_config);
     if let Err(e) = write_to_file(&default_config) {
         panic!("写入配置文件失败: {}", e)
     } else {
