@@ -8,7 +8,7 @@ use std::io::{stdin, stdout, Read, Write};
 use std::process::Command;
 use std::str;
 use regex::Regex;
-use chatgpt::prelude::ChatGPT;
+use chatgpt::prelude::{ChatGPT, ModelConfigurationBuilder,ChatGPTEngine,Url};
 use chatgpt::types::CompletionResponse;
 
 // 项目配置
@@ -64,7 +64,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         }
         return Ok(());
     }
-    let client = ChatGPT::new(ai_key)?;
+    let url = "https://api.openai.com/v1/chat/completions";
+    let parsed_url = Url::parse(url)?;
+    let client = ChatGPT::new_with_config(
+        ai_key,
+        ModelConfigurationBuilder::default()
+            .api_url(parsed_url)
+            .temperature(1.0)
+            .engine(ChatGPTEngine::Gpt35Turbo)
+            .build()
+            .unwrap(),
+    )?;
     // 组合git_commint_log,让gpt生成一个版本更新的总结
     let mut message = String::from("本次git提交记录如下：\n");
     for commit in git_commint_log {
