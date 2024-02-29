@@ -4,8 +4,12 @@ extern crate toml;
 
 use std::path::Path;
 use std::fs::File;
-use std::io::*;
+use std::io::{stdin, stdout, Read, Write};
 use std::process::Command;
+use std::str;
+use regex::Regex;
+use chatgpt::prelude::ChatGPT;
+use chatgpt::types::CompletionResponse;
 
 // 项目配置
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,7 +31,12 @@ struct AiConfig {
     key: Option<String>,
 }
 
-fn main() {
+
+// 一个小功能，通过获取git log，然后通过gpt生成一个版本更新的总结
+// 协助开发者创建版本发布的描述
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
+
     let config : DefaultConfig;
     // 首先判断根路径下面是否存在default.toml文件
     if has_default_toml() {
@@ -40,11 +49,50 @@ fn main() {
         config = create_default_toml();
     }
     // 使用配置信息执行命令
-    get_git_log(&config);
+    let (git_commint_log, tag)  = get_git_log(&config);
+
+    // 使用gpt生成版本更新的总结
+    let ai_config = config.ai.as_ref().unwrap();
+    let ai_key: &String = ai_config.key.as_ref().unwrap();
+    if ai_key.is_empty() {
+        println!("AI Key 为空，无法使用AI功能");
+        // 机器总结
+        let mut message = String::from("本次git提交记录如下：\n");
+        for commit in git_commint_log {
+            message.push_str(&commit);
+            message.push_str("\n");
+        }
+        return Ok(());
+    }
+    let client = ChatGPT::new(ai_key)?;
+    // 组合git_commint_log,让gpt生成一个版本更新的总结
+    let mut message = String::from("本次git提交记录如下：\n");
+    for commit in git_commint_log {
+        message.push_str(&commit);
+        message.push_str("\n");
+    }
+    message.push_str("请为本次生成一个git创建代码版本发布的描述：\n");
+    message.push_str("返回格式如下：\n");
+    message.push_str("1. 本次版本新增了如下功能：\n");
+    message.push_str(" a. 新增了xxxx 功能 \n");
+    message.push_str("2. 本次版本修复了如下bug：\n");
+    message.push_str(" a. 修复了xxxx bug \n");
+    message.push_str("3. 本次版本优化了如下功能：\n");
+    message.push_str(" a. 优化了xxxx 功能 \n");
+    message.push_str("...\n");
+    message.push_str("请按照上面的格式返回版本更新的总结：\n");
+
+    let start_time = std::time::Instant::now();
+    let response: CompletionResponse = client.send_message(message).await?;
+    println!("生成版本更新的总结成功，耗时：{:?}毫秒", start_time.elapsed().as_millis());
+
+    println!("上次发布版本号为{}，本次发布版本的内容如下：\n{}", tag, response.message().content);
+    Ok(())
+
 }
 
 // 获取git log （前提是已经打开了git仓库）
-fn get_git_log(config: &DefaultConfig) {
+fn get_git_log(config: &DefaultConfig) -> (Vec<String>,String) {
     let git_config = config.git.as_ref().unwrap();
     let git_path = git_config.path.as_ref().unwrap();
     let git_branch = git_config.branch.as_ref().unwrap();
@@ -61,30 +109,23 @@ fn get_git_log(config: &DefaultConfig) {
     let args = format!("-C {} tag --sort=-creatordate", git_path);
     let tag = cmd_excute(cmd, &args);
     // 截取第一个tag
-    let tag = tag.split_whitespace().next().unwrap();
+    let tag = tag.split_whitespace().next().expect("没有tag");
     let args = format!("-C {} log {}..HEAD", git_path, tag);
     let log = cmd_excute(cmd, &args);
-    println!("log: {}", log);
+    // 内容格式为：
     let commits = log_split(&log);
-    println!("commits: {:?}", commits);
+    (commits, tag.to_string())
 
 }
 
-// 将log分割成多个commit，只需要commit的内容
+// 将log分割成多个commit，只提取commit的信息，其他的信息不要
 fn log_split(log: &str) -> Vec<String> {
     let mut commits = Vec::new();
-    let mut commit = String::new();
-    for line in log.lines() {
-        if line.starts_with("commit") {
-            if !commit.is_empty() {
-                commits.push(commit);
-                commit = String::new();
-            }
-        }
-        commit.push_str(line);
-        commit.push_str("\n");
+    let re = Regex::new(r"Date:.*\n\n\s*(.*)").unwrap();
+    for cap in re.captures_iter(log) {
+        let commit = cap.get(1).map_or("", |m| m.as_str());
+        commits.push(commit.to_string());
     }
-    commits.push(commit);
     commits
 }
 
@@ -95,7 +136,7 @@ fn cmd_excute(cmd : &str, args : &str) -> String {
     let output = Command::new(cmd)
         .args(args.split_whitespace())
         .output()
-        .expect("failed to execute process");
+        .expect("cmd 执行失败");
     let result = String::from_utf8_lossy(&output.stdout);
     result.to_string()
 }
@@ -117,7 +158,7 @@ fn create_default_toml() -> DefaultConfig {
 
     println!("项目配置：{:?}", default_config);
     if let Err(e) = write_to_file(&default_config) {
-        eprintln!("写入配置文件时出错：{}", e);
+        panic!("写入配置文件失败: {}", e)
     } else {
         println!("配置已成功写入到 default.toml 文件中");
     }
@@ -126,7 +167,7 @@ fn create_default_toml() -> DefaultConfig {
 
 // 将DefaultConfig实例写入到default.toml文件中
 fn write_to_file(config: &DefaultConfig) -> std::io::Result<()> {
-    let toml_content = toml::to_string(config).unwrap();
+    let toml_content = toml::to_string(config).expect("无法序列化为toml");
     std::fs::write("default.toml", toml_content)?;
     Ok(())
 }
@@ -139,14 +180,14 @@ fn get_git_config() -> GitConfig {
     };
 
     print!("请输入 Git 仓库路径：");
-    stdout().flush().unwrap();
+    stdout().flush().expect("无法刷新输出");
     let mut input = String::new();
     stdin().read_line(&mut input).expect("无法读取输入");
     git_config.path = Some(input.trim().to_string());
 
     input.clear();
     print!("请输入 Git 分支：");
-    stdout().flush().unwrap();
+    stdout().flush().expect("无法刷新输出");
     stdin().read_line(&mut input).expect("无法读取输入");
     git_config.branch = Some(input.trim().to_string());
 
@@ -183,7 +224,7 @@ fn read_default_toml() -> DefaultConfig{
         Err(e) => panic!("Error Reading file: {}", e)
     };
     // 3. 返回DefaultConfig实例
-    let config: DefaultConfig = toml::from_str(&str_val).unwrap();
+    let config: DefaultConfig = toml::from_str(&str_val).expect("无法解析toml文件");
     config
 }
 
