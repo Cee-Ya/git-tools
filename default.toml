@@ -1,0 +1,6 @@
+[git]
+path = "D:\\git\\go\\src\\tr-aviation-demo-backend"
+branch = "staging"
+
+[ai]
+key = ""
