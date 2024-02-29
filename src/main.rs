@@ -29,9 +29,11 @@ struct GitConfig {
 #[derive(Debug, Serialize, Deserialize)]
 struct AiConfig {
     key: Option<String>,
+    url: Option<String>,
 }
 
 
+const DEFAULT_OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 // 一个小功能，通过获取git log，然后通过gpt生成一个版本更新的总结
 // 协助开发者创建版本发布的描述
 #[tokio::main]
@@ -53,7 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     // 使用gpt生成版本更新的总结
     let ai_config = config.ai.as_ref().unwrap();
-    let ai_key: &String = ai_config.key.as_ref().unwrap();
+    let ai_key = ai_config.key.as_ref().unwrap();
+    let ai_url = ai_config.url.as_ref().unwrap();
     if ai_key.is_empty() {
         println!("AI Key 为空，无法使用AI功能");
         // 机器总结
@@ -64,8 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         }
         return Ok(());
     }
-    let url = "https://api.openai.com/v1/chat/completions";
-    let parsed_url = Url::parse(url)?;
+    let parsed_url = Url::parse(ai_url)?;
     let client = ChatGPT::new_with_config(
         ai_key,
         ModelConfigurationBuilder::default()
@@ -159,11 +161,11 @@ fn create_default_toml() -> DefaultConfig {
         ai: None,
     };
     // 获取 git 配置
-    println!(" Git 配置 ===> ");
+    println!(" [Git 配置] ");
     default_config.git = Some(get_git_config());
 
     // 获取 ai 配置
-    println!(" AI 配置（如果不填写就是直接文字总结） ===> ");
+    println!(" [AI 配置（如果不填写就是直接文字总结）] ");
     default_config.ai = Some(get_ai_config());
 
     println!("项目配置：{:?}", default_config);
@@ -208,6 +210,7 @@ fn get_git_config() -> GitConfig {
 fn get_ai_config() -> AiConfig {
     let mut ai_config = AiConfig {
         key: None,
+        url: Some(DEFAULT_OPENAI_API_URL.to_string()),
     };
 
     print!("请输入 AI Key：");
@@ -215,6 +218,21 @@ fn get_ai_config() -> AiConfig {
     let mut input = String::new();
     stdin().read_line(&mut input).expect("无法读取输入");
     ai_config.key = Some(input.trim().to_string());
+    // 如果key为空，则不需要修改url
+    if ai_config.key.as_ref().unwrap().is_empty() {
+        return ai_config;
+    }
+    print!("AI URL 默认为 {}，是否需要修改？(y/n)：", DEFAULT_OPENAI_API_URL);
+    stdout().flush().unwrap();
+    input.clear();
+    stdin().read_line(&mut input).expect("无法读取输入");
+    if input.trim() == "y" {
+        input.clear();
+        print!("请输入 AI URL：");
+        stdout().flush().unwrap();
+        stdin().read_line(&mut input).expect("无法读取输入");
+        ai_config.url = Some(input.trim().to_string());
+    }
 
     ai_config
 }
