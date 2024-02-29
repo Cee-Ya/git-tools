@@ -66,7 +66,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             message.push_str(&commit);
             message.push_str("\n");
         }
-        return Ok(());
+        
+        println!("上次发布版本号为{}，本次发布版本的内容如下：\n{}", tag, message);
+        // 程序阻塞 ,不退出
+        let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
+        return Ok(())
     }
     let parsed_url = Url::parse(ai_url)?;
     let client = ChatGPT::new_with_config(
