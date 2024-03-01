@@ -225,6 +225,16 @@ fn get_git_config() -> GitConfig {
         panic!("{} 不是一个git仓库", path.display());
     }
 
+    // 使用git 命令获取Git分支
+    let cmd = "git";
+    let args = format!("-C {} branch", git_config.path.as_ref().unwrap());
+    let output = Command::new(cmd)
+        .args(args.split_whitespace())
+        .output()
+        .expect("cmd 执行失败");
+    let result = String::from_utf8_lossy(&output.stdout);
+    println!("分支信息：\n {}", result);
+
     input.clear();
     print!("请输入 Git 分支：");
     stdout().flush().expect("无法刷新输出");

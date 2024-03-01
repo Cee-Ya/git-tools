@@ -1,7 +1,0 @@
-[git]
-path = "D:\\GIT\\go\\src\\tr-aviation-demo-backend"
-branch = "staging"
-
-[ai]
-key = ""
-url = "https://api.openai.com/v1/chat/completions"
