@@ -37,7 +37,6 @@ const DEFAULT_OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions
 // 一个小功能，通过获取git log，然后通过gpt生成一个版本更新的总结
 // 协助开发者创建版本发布的描述
 #[tokio::main]
-#[warn(unreachable_code)]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let config : DefaultConfig;
@@ -234,8 +233,6 @@ fn get_git_config() -> GitConfig {
         "" => panic!("Git 分支不能为空"),
         _ => Some(input.trim().to_string()),
     };
-        
-    }
 
     git_config
 }
