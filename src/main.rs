@@ -215,15 +215,15 @@ fn get_git_config() -> GitConfig {
     };
 
     // 判断该路径是否是一个文件夹
-    let path = Path::new(&git_config.path.as_ref().unwrap());
-    if !path.is_dir() {
-        panic!("{} 不是一个文件夹", path.display());
-    }
+    // let path = Path::new(&git_config.path.as_ref().unwrap());
+    // if !path.is_dir() {
+    //     panic!("{} 不是一个文件夹", path.display());
+    // }
     // 判断该文件夹下是否存在.git文件夹
-    let git_path = path.join(".git");
-    if !git_path.is_dir() {
-        panic!("{} 不是一个git仓库", path.display());
-    }
+    // let git_path = path.join(".git");
+    // if !git_path.is_dir() {
+    //     panic!("{} 不是一个git仓库", path.display());
+    // }
 
     input.clear();
     print!("请输入 Git 分支：");
@@ -288,20 +288,20 @@ fn read_default_toml() -> DefaultConfig{
     if config.git.as_ref().unwrap().path.is_none() {
         panic!("default.toml文件中的git.path为空");
     }
-    // 判断config.git.path是否是一个文件夹
-    let path = Path::new(config.git.as_ref().unwrap().path.as_ref().unwrap());
-    if !path.is_dir() {
-        panic!("{} 不是一个文件夹", path.display());
-    }
-    // 判断config.git.path是否是一个git仓库
-    let git_path = path.join(".git");
-    if !git_path.is_dir() {
-        panic!("{} 不是一个git仓库", path.display());
-    }
-    // 判断config.git.branch是否为空
-    if config.git.as_ref().unwrap().branch.is_none() {
-        panic!("default.toml文件中的git.branch为空");
-    }
+    // // 判断config.git.path是否是一个文件夹
+    // let path = Path::new(config.git.as_ref().unwrap().path.as_ref().unwrap());
+    // if !path.is_dir() {
+    //     panic!("{} 不是一个文件夹", path.display());
+    // }
+    // // 判断config.git.path是否是一个git仓库
+    // let git_path = path.join(".git");
+    // if !git_path.is_dir() {
+    //     panic!("{} 不是一个git仓库", path.display());
+    // }
+    // // 判断config.git.branch是否为空
+    // if config.git.as_ref().unwrap().branch.is_none() {
+    //     panic!("default.toml文件中的git.branch为空");
+    // }
     config
 }
 
