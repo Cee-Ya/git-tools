@@ -54,6 +54,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // 使用配置信息执行命令
     let (git_commint_log, tag)  = get_git_log(&config);
 
+    if git_commint_log.is_empty() {
+        println!("没有新的提交记录，无需生成版本更新的总结");
+        // 程序阻塞 ,不退出
+        let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
+        return Ok(())
+    }
+
     // 使用gpt生成版本更新的总结
     let ai_config = config.ai.as_ref().unwrap();
     let ai_key = ai_config.key.as_ref().unwrap();
@@ -203,13 +210,32 @@ fn get_git_config() -> GitConfig {
     stdout().flush().expect("无法刷新输出");
     let mut input = String::new();
     stdin().read_line(&mut input).expect("无法读取输入");
-    git_config.path = Some(input.trim().to_string());
+    git_config.path = match input.trim() {
+        "" => panic!("Git 仓库路径不能为空"),
+        _ => Some(input.trim().to_string()),
+    };
+
+    // 判断该路径是否是一个文件夹
+    let path = Path::new(&git_config.path.as_ref().unwrap());
+    if !path.is_dir() {
+        panic!("{} 不是一个文件夹", path.display());
+    }
+    // 判断该文件夹下是否存在.git文件夹
+    let git_path = path.join(".git");
+    if !git_path.is_dir() {
+        panic!("{} 不是一个git仓库", path.display());
+    }
 
     input.clear();
     print!("请输入 Git 分支：");
     stdout().flush().expect("无法刷新输出");
     stdin().read_line(&mut input).expect("无法读取输入");
-    git_config.branch = Some(input.trim().to_string());
+    git_config.branch = match input.trim() {
+        "" => panic!("Git 分支不能为空"),
+        _ => Some(input.trim().to_string()),
+    };
+        
+    }
 
     git_config
 }
@@ -247,20 +273,38 @@ fn get_ai_config() -> AiConfig {
 
 // 读取default.toml文件
 fn read_default_toml() -> DefaultConfig{
-    // 1. 读取default.toml文件
+    // 读取default.toml文件
     let file_path = "default.toml";
     let mut file = match File::open(file_path) {
         Ok(f) => f,
         Err(e) => panic!("no such file {} exception:{}", file_path, e)
     };
-    // 2. 解析default.toml文件
+    // 解析default.toml文件
     let mut str_val = String::new();
     match file.read_to_string(&mut str_val) {
         Ok(s) => s,
         Err(e) => panic!("Error Reading file: {}", e)
     };
-    // 3. 返回DefaultConfig实例
+    // 返回DefaultConfig实例
     let config: DefaultConfig = toml::from_str(&str_val).expect("无法解析toml文件");
+    // 判断config.git.path是否为空
+    if config.git.as_ref().unwrap().path.is_none() {
+        panic!("default.toml文件中的git.path为空");
+    }
+    // 判断config.git.path是否是一个文件夹
+    let path = Path::new(config.git.as_ref().unwrap().path.as_ref().unwrap());
+    if !path.is_dir() {
+        panic!("{} 不是一个文件夹", path.display());
+    }
+    // 判断config.git.path是否是一个git仓库
+    let git_path = path.join(".git");
+    if !git_path.is_dir() {
+        panic!("{} 不是一个git仓库", path.display());
+    }
+    // 判断config.git.branch是否为空
+    if config.git.as_ref().unwrap().branch.is_none() {
+        panic!("default.toml文件中的git.branch为空");
+    }
     config
 }
 
