@@ -1,0 +1,7 @@
+[git]
+path = "D:\\git\\rust\\git-tools"
+branch = "main"
+
+[ai]
+key = "sk-7B1riO2N1yHdgcbcAa22363e6aC14d56A2E742F2B1068bD6"
+url = "https://uu.ci/v1/chat/completions"

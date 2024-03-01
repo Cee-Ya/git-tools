@@ -109,7 +109,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let response: CompletionResponse = client.send_message(message).await?;
     println!("生成版本更新的总结成功，耗时：{:?}毫秒", start_time.elapsed().as_millis());
 
-    println!("上次发布版本号为{}，本次发布版本的内容如下：\n{}", tag, response.message().content);
+    if tag.is_empty() {
+        println!("上次发布版本号为空，本次发布版本的内容如下：\n{}", response.message().content);
+    }else {
+        println!("上次发布版本号为{}，本次发布版本的内容如下：\n{}", tag, response.message().content);
+    }
 
 
     // 程序阻塞 ,不退出
@@ -135,9 +139,16 @@ fn get_git_log(config: &DefaultConfig) -> (Vec<String>,String) {
     // cmd无法处理 | 符号，所以需要将命令拆分，代码处理head -n 1
     let args = format!("-C {} tag --sort=-creatordate", git_path);
     let tag = cmd_excute(cmd, &args);
-    // 截取第一个tag
-    let tag = tag.split_whitespace().next().expect("没有tag");
-    let args = format!("-C {} log {}..HEAD", git_path, tag);
+    let args : String;
+    if tag.is_empty() {
+        println!("未获取到tag，获取所有的commit");
+        // 如果没有tag，则获取所有的commit
+        args = format!("-C {} log", git_path);
+    }else {
+        // 截取第一个tag
+        let tag = tag.split_whitespace().next().expect("没有tag");
+        args = format!("-C {} log {}..HEAD", git_path, tag);
+    }
     let log = cmd_excute(cmd, &args);
     // 内容格式为：
     let commits = log_split(&log);
